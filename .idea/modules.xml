@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/FileExplorer/fileexplorer.iml" filepath="$PROJECT_DIR$/FileExplorer/fileexplorer.iml" />
       <module fileurl="file://$PROJECT_DIR$/firmware_updater.iml" filepath="$PROJECT_DIR$/firmware_updater.iml" />
     </modules>
   </component>
