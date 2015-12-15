@@ -14,7 +14,6 @@ public class BluetoothTools {
 
     private Activity mActivity;
 
-
     private BluetoothAdapter adapter;
 
     public BluetoothTools(Activity activity) {

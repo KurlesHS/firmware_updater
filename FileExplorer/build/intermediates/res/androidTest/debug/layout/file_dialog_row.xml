@@ -12,4 +12,4 @@
 		android:gravity="center_vertical" android:layout_height="35dp"
 		android:textSize="23dp"></TextView> 
 
-</RelativeLayout><!-- From: file:/D:/develop/sources/android/firmware_updater/FileExplorer/res/layout/file_dialog_row.xml --><!-- From: file:/D:/develop/sources/android/firmware_updater/FileExplorer/build/intermediates/bundles/debug/res/layout/file_dialog_row.xml -->
+</RelativeLayout><!-- From: file:/D:/Develop/sources/android/firmware_updater/FileExplorer/res/layout/file_dialog_row.xml --><!-- From: file:/D:/Develop/sources/android/firmware_updater/FileExplorer/build/intermediates/bundles/debug/res/layout/file_dialog_row.xml -->

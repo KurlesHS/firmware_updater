@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- From: file:/D:/develop/sources/android/firmware_updater/FileExplorer/build/intermediates/bundles/debug/res/values/values.xml -->
+    <!-- From: file:/D:/Develop/sources/android/firmware_updater/FileExplorer/build/intermediates/bundles/debug/res/values/values.xml -->
     <eat-comment/>
     <color name="gray">#ffff0000</color>
     <string name="cancel">Cancel</string>

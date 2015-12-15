@@ -1,6 +1,7 @@
 package com.horrosoft.viotimer.firmware.updater.app;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
@@ -9,6 +10,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import com.horrosoft.viotimer.firmware.updater.app.bluetooth.DeviceListActivity;
+import com.horrosoft.viotimer.firmware.updater.app.bluetooth.IUploadStatusListener;
+import com.horrosoft.viotimer.firmware.updater.app.bluetooth.UploadFirmwareProtocol;
 import com.lamerman.FileDialog;
 import com.lamerman.SelectionMode;
 
@@ -18,7 +21,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements IUploadStatusListener {
 
     private static final int REQUEST_BT_DEVICE_MAC_ADDRESS = 0;
     private static final int LOAD_FILE_ID = 1;
@@ -26,6 +29,7 @@ public class MainActivity extends Activity {
     private Button makeAllHappyButton;
     private Button loadFirmwareButton;
     private byte[] firmware = null;
+    private ProgressDialog progress = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,6 +96,8 @@ public class MainActivity extends Activity {
         if (requestCode == REQUEST_BT_DEVICE_MAC_ADDRESS) {
             if (resultCode == RESULT_OK) {
                 value = data.getStringExtra(DeviceListActivity.EXTRA_DEVICE_ADDRESS);
+                UploadFirmwareProtocol p = new UploadFirmwareProtocol(value, firmware, this);
+
             }
         } else if (requestCode == LOAD_FILE_ID && resultCode == RESULT_OK) {
             String filePath = data.getStringExtra(FileDialog.RESULT_PATH);
@@ -104,8 +110,45 @@ public class MainActivity extends Activity {
                 e.printStackTrace();
                 firmware = null;
             }
+
         }
 
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void error(String errorMessage) {
+        if (progress != null) {
+            progress.setMessage(errorMessage);
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            progress.dismiss();
+            progress = null;
+        }
+    }
+
+    @Override
+    public void uploadProgress(int current, int total) {
+        if (progress == null) {
+            progress = ProgressDialog.show(this, "Flashing...", "Please wait");
+        }
+    }
+
+    @Override
+    public void finishUpload() {
+        if (progress != null) {
+            progress.setMessage("Upload finished.");
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            progress.dismiss();
+            progress = null;
+        }
+
     }
 }
