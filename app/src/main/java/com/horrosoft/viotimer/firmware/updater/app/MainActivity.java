@@ -10,6 +10,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import com.horrosoft.viotimer.firmware.updater.app.bluetooth.DeviceListActivity;
+import com.horrosoft.viotimer.firmware.updater.app.bluetooth.FirmwareReader;
 import com.horrosoft.viotimer.firmware.updater.app.bluetooth.IUploadStatusListener;
 import com.horrosoft.viotimer.firmware.updater.app.bluetooth.UploadFirmwareProtocol;
 import com.lamerman.FileDialog;
@@ -28,7 +29,7 @@ public class MainActivity extends Activity implements IUploadStatusListener {
 
     private Button makeAllHappyButton;
     private Button loadFirmwareButton;
-    private byte[] firmware = null;
+    private FirmwareReader firmwareReader = null;
     private ProgressDialog progress = null;
 
     @Override
@@ -96,19 +97,19 @@ public class MainActivity extends Activity implements IUploadStatusListener {
         if (requestCode == REQUEST_BT_DEVICE_MAC_ADDRESS) {
             if (resultCode == RESULT_OK) {
                 value = data.getStringExtra(DeviceListActivity.EXTRA_DEVICE_ADDRESS);
-                UploadFirmwareProtocol p = new UploadFirmwareProtocol(value, firmware, this);
+                UploadFirmwareProtocol p = new UploadFirmwareProtocol(value, firmwareReader, this);
 
             }
         } else if (requestCode == LOAD_FILE_ID && resultCode == RESULT_OK) {
             String filePath = data.getStringExtra(FileDialog.RESULT_PATH);
             File file = new File(filePath);
-            firmware = new byte[(int)file.length()];
+            byte[] firmware = new byte[(int) file.length()];
             try {
                 DataInputStream ds = new DataInputStream((new FileInputStream(file)));
                 ds.readFully(firmware);
+                FirmwareReader firmwareReader = new FirmwareReader(firmware);
             } catch (java.io.IOException e) {
                 e.printStackTrace();
-                firmware = null;
             }
 
         }

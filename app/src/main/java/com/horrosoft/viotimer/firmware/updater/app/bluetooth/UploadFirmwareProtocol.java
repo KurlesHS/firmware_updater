@@ -11,11 +11,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
-import java.util.Timer;
 import java.util.UUID;
 
 /**
- * Created by Alexey on 15.12.2015!.
+ * Created by Alexey on 15.12.2015.
  *
  */
 
@@ -56,10 +55,10 @@ public class UploadFirmwareProtocol {
         private boolean connectionStatus = true;
         private OutputStream mOutStream = null;
         private InputStream mInputStream = null;
-        byte [] firmware = null;
+        private FirmwareReader firmwareReader;
 
-        public BluetoothThreadWorker(String deviceMacAddress, byte[] firmware, MyHandler handler) {
-            this.firmware = firmware;
+        public BluetoothThreadWorker(String deviceMacAddress,FirmwareReader firmwareReader, MyHandler handler) {
+            this.firmwareReader = firmwareReader;
             mHandler = handler;
             mDeviceMacAddress = deviceMacAddress;
             mBluetoothAdapter = null;
@@ -120,8 +119,6 @@ public class UploadFirmwareProtocol {
             try {
                 byte [] buffer = new byte[1024];
                 //mOutStream.write("hello!\n".getBytes());
-                int current = 0;
-                int total = 0;
                 mHandler.obtainMessage(UPLOAD_PROGRESS, 0, 0).sendToTarget();
 
                 for (;;) {
@@ -173,17 +170,13 @@ public class UploadFirmwareProtocol {
 
     }
 
-    private MyHandler mHandler;
-    private String mDeviceMacAddress;
     private IUploadStatusListener statusListener;
-    private BluetoothThreadWorker mThreadWorker;
 
-    public UploadFirmwareProtocol(String deviceMacAddress, byte[] firmware, IUploadStatusListener statusListener) {
+    public UploadFirmwareProtocol(String deviceMacAddress, FirmwareReader firmwareReader, IUploadStatusListener statusListener) {
         this.statusListener = statusListener;
-        mDeviceMacAddress = deviceMacAddress;
-        mHandler = new MyHandler(this);
-        mThreadWorker = new BluetoothThreadWorker(deviceMacAddress,firmware, mHandler);
-        mThreadWorker.start();
+        MyHandler handler = new MyHandler(this);
+        BluetoothThreadWorker threadWorker = new BluetoothThreadWorker(deviceMacAddress, firmwareReader, handler);
+        threadWorker.start();
     }
 
     public void handleMessage(Message msg) {
