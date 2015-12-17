@@ -3,6 +3,7 @@ package com.horrosoft.viotimer.firmware.updater.app.bluetooth;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.hardware.camera2.params.Face;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -15,7 +16,6 @@ import java.util.UUID;
 
 /**
  * Created by Alexey on 15.12.2015.
- *
  */
 
 
@@ -46,7 +46,7 @@ public class UploadFirmwareProtocol {
     }
 
 
-    private class BluetoothThreadWorker  extends Thread {
+    private class BluetoothThreadWorker extends Thread {
         private final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
         private String mDeviceMacAddress;
         private MyHandler mHandler;
@@ -57,12 +57,22 @@ public class UploadFirmwareProtocol {
         private InputStream mInputStream = null;
         private FirmwareReader firmwareReader;
 
-        public BluetoothThreadWorker(String deviceMacAddress,FirmwareReader firmwareReader, MyHandler handler) {
+        public BluetoothThreadWorker(String deviceMacAddress, FirmwareReader firmwareReader, MyHandler handler) {
             this.firmwareReader = firmwareReader;
             mHandler = handler;
             mDeviceMacAddress = deviceMacAddress;
             mBluetoothAdapter = null;
 
+        }
+
+        private boolean compareArrays(byte[] ba, String s) {
+            byte[] bs = s.getBytes();
+            for (int i = 0; i < s.length(); ++i) {
+                if (ba[i] != bs[i]) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         @Override
@@ -88,9 +98,9 @@ public class UploadFirmwareProtocol {
                 } catch (IOException e) {
                     connectionStatus = false;
                 }
-            }catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException e) {
                 connectionStatus = false;
-        }
+            }
             mBluetoothAdapter.cancelDiscovery();
 
             try {
@@ -117,26 +127,61 @@ public class UploadFirmwareProtocol {
             }
 
             try {
-                byte [] buffer = new byte[1024];
-                //mOutStream.write("hello!\n".getBytes());
-                mHandler.obtainMessage(UPLOAD_PROGRESS, 0, 0).sendToTarget();
+                int totalPackets = firmwareReader.totalParts();
 
-                for (;;) {
-                    int read = readTimeout(buffer, 2000);
-                    if (read < 0) {
-                        mHandler.obtainMessage(ERROR_FINISHED, "error happens while flashing =(").sendToTarget();
-                        break;
-                    }
-                    if (read > 0) {
-                        mOutStream.write(buffer, 0, read);
-                        if (buffer[0] == 'q') {
-                            break;
+                byte[] buffer = new byte[1024];
+
+                for (int currentPacketNumber = 0; currentPacketNumber < totalPackets; ++currentPacketNumber) {
+                    FirmwareReader.PacketSetting packetSetting = firmwareReader.getFirstPacket();
+                    if (currentPacketNumber != 0) {
+                        if (currentPacketNumber + 1 >= totalPackets) {
+                            packetSetting = firmwareReader.getLastPacket();
+                        } else {
+                            packetSetting = firmwareReader.getMiddlePacket();
                         }
-                    } else {
-                        mOutStream.write("error 0".getBytes());
+                    }
+                    int retryCount = packetSetting.retryCount;
+                    final int delayBetweenResendPacket = packetSetting.delayBetweenResendPacket;
+                    mHandler.obtainMessage(UPLOAD_PROGRESS, currentPacketNumber, totalPackets - 1).sendToTarget();
+
+                    byte[] packetData = firmwareReader.getPacket(currentPacketNumber);
+                    if (retryCount <= 0) {
+                        retryCount = 1;
+                    }
+                    boolean success = false;
+                    while (retryCount-- != 0) {
+                        mOutStream.write(packetData);
+                        int read = readTimeout(buffer, packetSetting.timeout * 1000);
+                        if (read == 0) {
+                            if (retryCount != 0) {
+                                try {
+                                    Thread.sleep(packetSetting.delayBetweenResendPacket * 1000);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                        if (read == packetSetting.okResponse.length()) {
+                            if (compareArrays(buffer, packetSetting.okResponse)) {
+                                success = true;
+                                break;
+                            }
+                        } else if (read == packetSetting.badResponse.length()) {
+                            if (compareArrays(buffer, packetSetting.badResponse)) {
+                                continue;
+                            }
+                        }
+                        mHandler.obtainMessage(ERROR_FINISHED, "received unexpected response from timer");
+                        return;
+                    }
+                    if (!success) {
+                        mHandler.obtainMessage(ERROR_FINISHED, "didn't wait for a response from timer =(").sendToTarget();
+                        return;
                     }
                 }
+
                 mHandler.obtainMessage(UPLOAD_FINISHED).sendToTarget();
+
             } catch (IOException e) {
                 e.printStackTrace();
                 mHandler.obtainMessage(ERROR_FINISHED, "error happens while flashing =(").sendToTarget();

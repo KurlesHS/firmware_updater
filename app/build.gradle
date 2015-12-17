@@ -39,6 +39,6 @@ android {
 }
 
 dependencies {
-    compile project (path: ':fileexplorer')
+    compile project(path: ':fileexplorer')
     compile fileTree(include: ['*.jar'], dir: 'libs')
 }

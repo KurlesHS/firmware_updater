@@ -7,6 +7,8 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Alexey on 16.12.2015.
@@ -29,6 +31,7 @@ public class FirmwareReader {
     private PacketSetting lastPacket = new PacketSetting();
     private int baudrate = -1;
     private int packetLength = -1;
+    private String description = "There is no description of the firmware file.";
 
     private XmlPullParser myParser;
 
@@ -45,6 +48,9 @@ public class FirmwareReader {
     private static final String retryCountTag = "retry_count";
     private static final String timeoutTag = "timeout";
     private static final String delayBetweenResendPacketTag = "delay_between_resend_packet";
+
+    private static final String descriptionTag = "description";
+
     // private static final String Tag = "";
 
     public PacketSetting getFirstPacket() {
@@ -72,6 +78,14 @@ public class FirmwareReader {
             return firmwareData.length / packetLength;
         }
         return 0;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public boolean isValid() {
+        return correct;
     }
 
     public byte[] getPacket(int packetNum) {
@@ -131,7 +145,7 @@ public class FirmwareReader {
     }
 
     private boolean readXmlPart() {
-        StringBuilder sb = new StringBuilder();
+        List<Byte> list = new ArrayList<Byte>();
         while (true) {
             try {
                 int b = inputStream.read();
@@ -139,17 +153,20 @@ public class FirmwareReader {
                     correct = false;
                     break;
                 } else if (b > 0) {
-                    sb.append((char)b);
+                    list.add((byte)b);
                 } else {
                     break;
                 }
             } catch (IOException e) {
                 correct = false;
+                break;
             }
         }
         if (correct) {
-            String xml = sb.toString();
-            byte[] xmlData = xml.getBytes();
+            byte[] xmlData = new byte[list.size()];
+            for (int i = 0; i < list.size(); ++i) {
+                xmlData[i] = list.get(i);
+            }
             InputStream xmlStream = new ByteArrayInputStream(xmlData);
             try {
                 myParser.setInput(xmlStream, null);
@@ -197,6 +214,8 @@ public class FirmwareReader {
                                 baudrate = Integer.parseInt(text);
                             } else if (name.equals(packetLengthTag)) {
                                 packetLength = Integer.parseInt(text);
+                            } else if (name.equals(descriptionTag)) {
+                                description = text;
                             }
                         }
                         break;

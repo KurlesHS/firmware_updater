@@ -9,6 +9,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import com.horrosoft.viotimer.firmware.updater.app.bluetooth.DeviceListActivity;
 import com.horrosoft.viotimer.firmware.updater.app.bluetooth.FirmwareReader;
 import com.horrosoft.viotimer.firmware.updater.app.bluetooth.IUploadStatusListener;
@@ -107,7 +108,15 @@ public class MainActivity extends Activity implements IUploadStatusListener {
             try {
                 DataInputStream ds = new DataInputStream((new FileInputStream(file)));
                 ds.readFully(firmware);
-                FirmwareReader firmwareReader = new FirmwareReader(firmware);
+                firmwareReader = new FirmwareReader(firmware);
+                if (firmwareReader.isValid()) {
+                    setDescriptionText(firmwareReader.getDescription());
+                    setResultText("firmware loaded");
+                } else {
+                    setDescriptionText("");
+                    setResultText("wrong firmware file");
+                    firmwareReader = null;
+                }
             } catch (java.io.IOException e) {
                 e.printStackTrace();
             }
@@ -116,6 +125,18 @@ public class MainActivity extends Activity implements IUploadStatusListener {
 
         super.onActivityResult(requestCode, resultCode, data);
     }
+
+    private void setResultText(String text) {
+        TextView tv = (TextView) findViewById(R.id.textViewOperationResult);
+        tv.setText(text);
+    }
+
+    private void setDescriptionText(String text) {
+        TextView tv = (TextView) findViewById(R.id.textViewDescription);
+        tv.setText(text);
+    }
+
+
 
     @Override
     public void error(String errorMessage) {
@@ -136,6 +157,8 @@ public class MainActivity extends Activity implements IUploadStatusListener {
         if (progress == null) {
             progress = ProgressDialog.show(this, "Flashing...", "Please wait");
         }
+        progress.setMax(total);
+        progress.setProgress(current);
     }
 
     @Override
