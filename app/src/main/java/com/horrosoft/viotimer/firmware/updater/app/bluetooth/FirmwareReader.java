@@ -65,14 +65,6 @@ public class FirmwareReader {
         return lastPacket;
     }
 
-    public int getPacketLength() {
-        return packetLength;
-    }
-
-    public int getBaudrate() {
-        return baudrate;
-    }
-
     public int totalParts() {
         if (correct) {
             return firmwareData.length / packetLength;
@@ -175,7 +167,6 @@ public class FirmwareReader {
                 PacketSetting currentPacket = null;
                 String name = "";
                 while (event != XmlPullParser.END_DOCUMENT) {
-
                     switch (event) {
                         case XmlPullParser.START_TAG: {
                             name = myParser.getName();

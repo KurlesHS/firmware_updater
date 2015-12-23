@@ -3,7 +3,6 @@ package com.horrosoft.viotimer.firmware.updater.app.bluetooth;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.hardware.camera2.params.Face;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -16,6 +15,7 @@ import java.util.UUID;
 
 /**
  * Created by Alexey on 15.12.2015.
+ *
  */
 
 
@@ -24,6 +24,8 @@ public class UploadFirmwareProtocol {
     public final static int UPLOAD_FINISHED = 1;
     public final static int ERROR_FINISHED = 2;
     public final static int UPLOAD_PROGRESS = 3;
+
+    BluetoothThreadWorker threadWorker = null;
 
     private static class MyHandler extends Handler {
 
@@ -122,6 +124,11 @@ public class UploadFirmwareProtocol {
             }
 
             if (!connectionStatus) {
+                try {
+                    mBtSocket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 mHandler.obtainMessage(ERROR_FINISHED, "error connect to device");
                 return;
             }
@@ -141,7 +148,6 @@ public class UploadFirmwareProtocol {
                         }
                     }
                     int retryCount = packetSetting.retryCount;
-                    final int delayBetweenResendPacket = packetSetting.delayBetweenResendPacket;
                     mHandler.obtainMessage(UPLOAD_PROGRESS, currentPacketNumber, totalPackets - 1).sendToTarget();
 
                     byte[] packetData = firmwareReader.getPacket(currentPacketNumber);
@@ -151,11 +157,11 @@ public class UploadFirmwareProtocol {
                     boolean success = false;
                     while (retryCount-- != 0) {
                         mOutStream.write(packetData);
-                        int read = readTimeout(buffer, packetSetting.timeout * 1000);
+                        int read = readTimeout(buffer, packetSetting.timeout );
                         if (read == 0) {
                             if (retryCount != 0) {
                                 try {
-                                    Thread.sleep(packetSetting.delayBetweenResendPacket * 1000);
+                                    Thread.sleep(packetSetting.delayBetweenResendPacket );
                                 } catch (InterruptedException e) {
                                     e.printStackTrace();
                                 }
@@ -171,19 +177,26 @@ public class UploadFirmwareProtocol {
                                 continue;
                             }
                         }
-                        mHandler.obtainMessage(ERROR_FINISHED, "received unexpected response from timer");
+                        mBtSocket.close();
+                        mHandler.obtainMessage(ERROR_FINISHED, "received unexpected response from timer").sendToTarget();
                         return;
                     }
                     if (!success) {
+                        mBtSocket.close();
                         mHandler.obtainMessage(ERROR_FINISHED, "didn't wait for a response from timer =(").sendToTarget();
                         return;
                     }
                 }
-
+                mBtSocket.close();
                 mHandler.obtainMessage(UPLOAD_FINISHED).sendToTarget();
 
             } catch (IOException e) {
                 e.printStackTrace();
+                try {
+                    mBtSocket.close();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
                 mHandler.obtainMessage(ERROR_FINISHED, "error happens while flashing =(").sendToTarget();
             }
         }
@@ -220,7 +233,11 @@ public class UploadFirmwareProtocol {
     public UploadFirmwareProtocol(String deviceMacAddress, FirmwareReader firmwareReader, IUploadStatusListener statusListener) {
         this.statusListener = statusListener;
         MyHandler handler = new MyHandler(this);
-        BluetoothThreadWorker threadWorker = new BluetoothThreadWorker(deviceMacAddress, firmwareReader, handler);
+        threadWorker = new BluetoothThreadWorker(deviceMacAddress, firmwareReader, handler);
+
+    }
+
+    public void start() {
         threadWorker.start();
     }
 
@@ -239,5 +256,4 @@ public class UploadFirmwareProtocol {
                 break;
         }
     }
-
 }

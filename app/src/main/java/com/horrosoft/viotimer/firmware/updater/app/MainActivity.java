@@ -5,6 +5,7 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -20,7 +21,6 @@ import com.lamerman.SelectionMode;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 
 
 public class MainActivity extends Activity implements IUploadStatusListener {
@@ -28,17 +28,17 @@ public class MainActivity extends Activity implements IUploadStatusListener {
     private static final int REQUEST_BT_DEVICE_MAC_ADDRESS = 0;
     private static final int LOAD_FILE_ID = 1;
 
-    private Button makeAllHappyButton;
-    private Button loadFirmwareButton;
     private FirmwareReader firmwareReader = null;
     private ProgressDialog progress = null;
+    private UploadFirmwareProtocol uploadFirmwareProtocol = null;
+    private Handler handler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        makeAllHappyButton = (Button) findViewById(R.id.make_all_happy_button);
-        loadFirmwareButton = (Button) findViewById(R.id.load_button);
+        Button makeAllHappyButton = (Button) findViewById(R.id.make_all_happy_button);
+        Button loadFirmwareButton = (Button) findViewById(R.id.load_button);
         final Activity activity = this;
 
         makeAllHappyButton.setOnClickListener(new View.OnClickListener() {
@@ -94,11 +94,11 @@ public class MainActivity extends Activity implements IUploadStatusListener {
         if (data == null) {
             return;
         }
-        String value = "something goes wrong";
         if (requestCode == REQUEST_BT_DEVICE_MAC_ADDRESS) {
             if (resultCode == RESULT_OK) {
-                value = data.getStringExtra(DeviceListActivity.EXTRA_DEVICE_ADDRESS);
-                UploadFirmwareProtocol p = new UploadFirmwareProtocol(value, firmwareReader, this);
+                String value = data.getStringExtra(DeviceListActivity.EXTRA_DEVICE_ADDRESS);
+                uploadFirmwareProtocol = new UploadFirmwareProtocol(value, firmwareReader, this);
+                uploadFirmwareProtocol.start();
 
             }
         } else if (requestCode == LOAD_FILE_ID && resultCode == RESULT_OK) {
@@ -136,43 +136,58 @@ public class MainActivity extends Activity implements IUploadStatusListener {
         tv.setText(text);
     }
 
-
+    private void setMessageOnProgressBarAndCloseAfter(String message, int delay) {
+        if (progress != null) {
+            progress.setMessage(message);
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (progress != null) {
+                        progress.dismiss();
+                        progress = null;
+                    }
+                }
+            }, delay);
+        }
+    }
 
     @Override
     public void error(String errorMessage) {
         if (progress != null) {
-            progress.setMessage(errorMessage);
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            progress.dismiss();
-            progress = null;
+            progress.setTitle("Error.");
         }
+        setMessageOnProgressBarAndCloseAfter(errorMessage, 2000);
+        setResultText(errorMessage);
+        uploadFirmwareProtocol = null;
     }
 
     @Override
     public void uploadProgress(int current, int total) {
         if (progress == null) {
-            progress = ProgressDialog.show(this, "Flashing...", "Please wait");
+            progress = new ProgressDialog(this);
+            progress.setTitle("Flashing...");
+            progress.setMessage("Please wait");
+            progress.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+            progress.setIndeterminate(false);
+            progress.setMax(total);
+            progress.setCancelable(false);
+            progress.setCanceledOnTouchOutside(false);
+            progress.show();
         }
-        progress.setMax(total);
+
         progress.setProgress(current);
+        progress.setSecondaryProgress(current);
     }
 
     @Override
     public void finishUpload() {
         if (progress != null) {
-            progress.setMessage("Upload finished.");
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            progress.dismiss();
-            progress = null;
+            progress.setTitle("Upload finished.");
         }
+        String finalMessage = "Upload finished.";
+        setMessageOnProgressBarAndCloseAfter(finalMessage, 2000);
+        setResultText(finalMessage);
+        uploadFirmwareProtocol = null;
 
     }
 }
