@@ -155,28 +155,35 @@ public class UploadFirmwareProtocol {
                         retryCount = 1;
                     }
                     boolean success = false;
-                    while (retryCount-- != 0) {
+                    mainLoop: while (retryCount-- != 0) {
                         mOutStream.write(packetData);
-                        int read = readTimeout(buffer, packetSetting.timeout );
-                        if (read == 0) {
-                            if (retryCount != 0) {
-                                try {
-                                    Thread.sleep(packetSetting.delayBetweenResendPacket );
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
+                        int totalRead = 0;
+                        int maxResponseLen = Math.max(packetSetting.okResponse.length(), packetSetting.badResponse.length());
+                        while (totalRead < maxResponseLen) {
+                            int read = readTimeout(buffer, totalRead, packetSetting.timeout);
+
+                            totalRead += read;
+                            if (read == 0) {
+                                if (retryCount != 0) {
+                                    try {
+                                        Thread.sleep(packetSetting.delayBetweenResendPacket);
+                                    } catch (InterruptedException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            }
+                            if (totalRead == packetSetting.okResponse.length()) {
+                                if (compareArrays(buffer, packetSetting.okResponse)) {
+                                    success = true;
+                                    break mainLoop;
+                                }
+                            } else if (totalRead == packetSetting.badResponse.length()) {
+                                if (compareArrays(buffer, packetSetting.badResponse)) {
+                                    continue mainLoop;
                                 }
                             }
                         }
-                        if (read == packetSetting.okResponse.length()) {
-                            if (compareArrays(buffer, packetSetting.okResponse)) {
-                                success = true;
-                                break;
-                            }
-                        } else if (read == packetSetting.badResponse.length()) {
-                            if (compareArrays(buffer, packetSetting.badResponse)) {
-                                continue;
-                            }
-                        }
+
                         mBtSocket.close();
                         mHandler.obtainMessage(ERROR_FINISHED, "received unexpected response from timer").sendToTarget();
                         return;
@@ -201,15 +208,15 @@ public class UploadFirmwareProtocol {
             }
         }
 
-        int readTimeout(byte[] buffer, int timeout) throws IOException {
+        int readTimeout(byte[] buffer, int byteOffset, int timeout) throws IOException {
             int retVal = 0;
             int currentTimeout = 0;
             while (true) {
                 if (mInputStream.available() > 0) {
-                    retVal = mInputStream.read(buffer);
+                    retVal = mInputStream.read(buffer, byteOffset, buffer.length - byteOffset);
                     break;
                 }
-                int sleepPeriod = 200;
+                int sleepPeriod = 1;
                 int remainSleepPeriod = timeout - currentTimeout;
                 if (remainSleepPeriod <= 0) {
                     break;
@@ -221,7 +228,7 @@ public class UploadFirmwareProtocol {
                 } catch (InterruptedException e) {
                     break;
                 }
-                currentTimeout += 200;
+                currentTimeout += 1;
             }
             return retVal;
         }
